@@ -1,10 +1,14 @@
-import { Entity, MikroORM, PrimaryKey, Property } from '@mikro-orm/sqlite';
+import { Entity, MikroORM, ObjectId, PrimaryKey, Property } from '@mikro-orm/mongodb';
+import {SerializedPrimaryKey} from "@mikro-orm/core";
 
 @Entity()
 class User {
 
-  @PrimaryKey()
-  id!: number;
+  @PrimaryKey({ type: "ObjectId" })
+  _id = new ObjectId();
+
+  @SerializedPrimaryKey()
+  id!: string;
 
   @Property()
   name: string;
@@ -23,7 +27,8 @@ let orm: MikroORM;
 
 beforeAll(async () => {
   orm = await MikroORM.init({
-    dbName: ':memory:',
+    clientUrl: process.env.MONGO_URL,
+    dbName: "jest",
     entities: [User],
     debug: ['query', 'query-params'],
     allowGlobalContext: true, // only for testing

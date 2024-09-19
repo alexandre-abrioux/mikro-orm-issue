@@ -1,9 +1,7 @@
+const jest_mongodb = require("@shelf/jest-mongodb/jest-preset")
+
+/** @type {import('ts-jest/dist/types').InitialOptionsTsJest} */
 module.exports = {
-  testTimeout: 30000,
-  transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      // tsconfig: 'tsconfig.json',
-      isolatedModules: true,
-    }],
-  },
+  ...jest_mongodb,
+  preset: "ts-jest",
 };
