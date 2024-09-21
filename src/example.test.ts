@@ -59,7 +59,7 @@ it("should populate a json property that contains a default value in its prototy
   await em1.flush();
 
   const user2 = await em2.findOneOrFail(User, { email: "test@test.com" });
-  expect(user2.devices).toEqual({ mouse: "acme", keyboard: "acme" });
+  expect(user2.devices).toEqual({ mouse: "acme", keyboard: "acme" }); // this fails, property "mouse" is missing
 });
 
 it("should populate a json property that contains a default value in its prototype at entity update", async () => {
@@ -87,5 +87,5 @@ it("should populate a json property that contains a default value in its prototy
   await em2.flush();
 
   const user3 = await em3.findOneOrFail(User, { email: "test@test.com" });
-  expect(user3.devices).toEqual({ mouse: "acme", keyboard: "acme" });
+  expect(user3.devices).toEqual({ mouse: "acme", keyboard: "acme" }); // this fails, property "mouse" is missing
 });
