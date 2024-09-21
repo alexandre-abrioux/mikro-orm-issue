@@ -1,31 +1,27 @@
 import {
   Entity,
   MikroORM,
+  MongoEntityRepository,
   ObjectId,
   PrimaryKey,
   Property,
 } from "@mikro-orm/mongodb";
-import { SerializedPrimaryKey } from "@mikro-orm/core";
+
+type Devices = { mouse: string; keyboard: string };
 
 @Entity()
 class User {
   @PrimaryKey({ type: "ObjectId" })
   _id = new ObjectId();
 
-  @SerializedPrimaryKey()
-  id!: string;
-
-  @Property()
-  name: string;
-
   @Property({ unique: true })
-  email: string;
+  email!: string;
 
-  constructor(name: string, email: string) {
-    this.name = name;
-    this.email = email;
-  }
+  @Property({ type: "json" })
+  devices?: Devices;
 }
+
+class UserRepository extends MongoEntityRepository<User> {}
 
 let orm: MikroORM;
 
@@ -44,17 +40,52 @@ afterAll(async () => {
   await orm.close(true);
 });
 
-test("basic CRUD example", async () => {
-  orm.em.create(User, { name: "Foo", email: "foo" });
-  await orm.em.flush();
-  orm.em.clear();
+it("should populate a json property that contains a default value in its prototype at entity creation", async () => {
+  const em1 = orm.em.fork();
+  const em2 = orm.em.fork();
+  const userRepository = new UserRepository(em1, User);
 
-  const user = await orm.em.findOneOrFail(User, { email: "foo" });
-  expect(user.name).toBe("Foo");
-  user.name = "Bar";
-  orm.em.remove(user);
-  await orm.em.flush();
+  // create object with prototype containing a default value for the mouse brand
+  const devices: Devices = Object.create({
+    mouse: "no-brand",
+  });
+  // set actual values
+  devices.mouse = "acme";
+  devices.keyboard = "acme";
+  userRepository.create({
+    email: "test@test.com",
+    devices,
+  });
+  await em1.flush();
 
-  const count = await orm.em.count(User, { email: "foo" });
-  expect(count).toBe(0);
+  const user2 = await em2.findOneOrFail(User, { email: "test@test.com" });
+  expect(user2.devices).toEqual({ mouse: "acme", keyboard: "acme" });
+});
+
+it("should populate a json property that contains a default value in its prototype at entity update", async () => {
+  const em1 = orm.em.fork();
+  const em2 = orm.em.fork();
+  const em3 = orm.em.fork();
+  const userRepository = new UserRepository(em1, User);
+
+  userRepository.create({
+    email: "test@test.com",
+    devices: { mouse: "nobrand", keyboard: "nobrand" },
+  });
+  await em1.flush();
+
+  const user2 = await em2.findOneOrFail(User, { email: "test@test.com" });
+  expect(user2.devices).toEqual({ mouse: "nobrand", keyboard: "nobrand" });
+  // create object with prototype containing default value
+  const devices: Devices = Object.create({
+    mouse: "nobrand",
+  });
+  // set actual values
+  devices.mouse = "acme";
+  devices.keyboard = "acme";
+  user2.devices = devices;
+  await em2.flush();
+
+  const user3 = await em3.findOneOrFail(User, { email: "test@test.com" });
+  expect(user3.devices).toEqual({ mouse: "acme", keyboard: "acme" });
 });
