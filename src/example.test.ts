@@ -7,6 +7,11 @@ import {
 } from "@mikro-orm/mongodb";
 import { SerializedPrimaryKey } from "@mikro-orm/core";
 
+type Event = {
+  name: string;
+  date: Date;
+};
+
 @Entity()
 class User {
   @PrimaryKey({ type: "ObjectId" })
@@ -15,16 +20,11 @@ class User {
   @SerializedPrimaryKey()
   id!: string;
 
-  @Property()
-  name: string;
-
   @Property({ unique: true })
-  email: string;
+  email!: string;
 
-  constructor(name: string, email: string) {
-    this.name = name;
-    this.email = email;
-  }
+  @Property({ type: "json" })
+  events: Event[] = [];
 }
 
 let orm: MikroORM;
@@ -44,17 +44,16 @@ afterAll(async () => {
   await orm.close(true);
 });
 
-test("basic CRUD example", async () => {
-  orm.em.create(User, { name: "Foo", email: "foo" });
+test("ISODates received by MongoDB driver in JSON properties should not be erased", async () => {
+  orm.em.create(User, {
+    email: "foo",
+    events: [{ name: "creation", date: new Date() }],
+  });
   await orm.em.flush();
   orm.em.clear();
 
   const user = await orm.em.findOneOrFail(User, { email: "foo" });
-  expect(user.name).toBe("Foo");
-  user.name = "Bar";
-  orm.em.remove(user);
-  await orm.em.flush();
-
-  const count = await orm.em.count(User, { email: "foo" });
-  expect(count).toBe(0);
+  expect(user.events.length).toBe(1);
+  expect(user.events[0].name).toBe("creation");
+  expect(user.events[0].date).toBeInstanceOf(Date); // this fails
 });
